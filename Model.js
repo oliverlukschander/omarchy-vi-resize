@@ -3,10 +3,11 @@ function parseStatus(text) {
     var obj = JSON.parse(String(text || "").trim())
     return {
       togglePresent: !!obj.togglePresent,
-      bindsActive: !!obj.bindsActive
+      bindsActive: !!obj.bindsActive,
+      keydMapped: !!obj.keydMapped
     }
   } catch (e) {
-    return { togglePresent: false, bindsActive: false }
+    return { togglePresent: false, bindsActive: false, keydMapped: false }
   }
 }
 
@@ -15,13 +16,15 @@ function ready(status) {
 }
 
 function statusLabel(status) {
-  if (ready(status)) return "On"
+  if (ready(status) && status.keydMapped) return "On"
+  if (ready(status)) return "Super only"
   if (status && status.togglePresent && !status.bindsActive) return "Reload needed"
   return "Off"
 }
 
 function statusMeta(status) {
-  if (ready(status)) return "SUPER + hjkl resizes the window"
-  if (status && status.togglePresent && !status.bindsActive) return "Bindings are installed; reload Hyprland if SUPER + hjkl does nothing"
-  return "Install the bindings to turn SUPER + hjkl resize on"
+  if (ready(status) && status.keydMapped) return "Caps + Shift + hjkl resizes the window"
+  if (ready(status)) return "SUPER + SHIFT + hjkl resizes; install Vi Mode for Caps + Shift"
+  if (status && status.togglePresent && !status.bindsActive) return "Bindings are installed; reload Hyprland if resize does nothing"
+  return "Install the bindings to turn Caps + Shift + hjkl resize on"
 }

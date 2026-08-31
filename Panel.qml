@@ -15,7 +15,7 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
   property bool openedFromHotkey: false
-  property var status: ({ togglePresent: false, bindsActive: false })
+  property var status: ({ togglePresent: false, bindsActive: false, keydMapped: false })
   property int actionCursor: 0
 
   readonly property var barIdentity: hostWidget || root
@@ -27,18 +27,12 @@ Panel {
   readonly property string label: "󰩨"
 
   readonly property var bindings: [
-    { keys: "SUPER + h", action: "Grow left" },
-    { keys: "SUPER + j", action: "Grow down" },
-    { keys: "SUPER + k", action: "Grow up" },
-    { keys: "SUPER + l", action: "Grow right" },
-    { keys: "Hold SUPER + hjkl", action: "Keep resizing" },
+    { keys: "Caps + Shift + h", action: "Grow left" },
+    { keys: "Caps + Shift + j", action: "Grow down" },
+    { keys: "Caps + Shift + k", action: "Grow up" },
+    { keys: "Caps + Shift + l", action: "Grow right" },
+    { keys: "SUPER + SHIFT + hjkl", action: "Same, without Caps" },
     { keys: "SUPER + right-click", action: "Mouse resize (unchanged)" }
-  ]
-
-  readonly property var moved: [
-    { keys: "SUPER + SHIFT + J", action: "Toggle split" },
-    { keys: "SUPER + SHIFT + K", action: "Keybindings" },
-    { keys: "SUPER + SHIFT + L", action: "Workspace layout" }
   ]
 
   readonly property var actions: mappingReady
@@ -118,7 +112,7 @@ Panel {
 
   Timer {
     id: delayedRefresh
-    interval: 1500
+    interval: 4000
     repeat: false
     onTriggered: root.refresh()
   }
@@ -190,7 +184,7 @@ Panel {
         PanelSeparator { width: parent.width }
 
         PanelSectionHeader {
-          text: "HOLD SUPER"
+          text: "HOLD CAPS + SHIFT"
           foreground: root.foreground
           fontFamily: root.fontFamily
         }
@@ -225,47 +219,11 @@ Panel {
 
         Text {
           width: parent.width
-          text: "Keyboard analog of SUPER + right-click. Tap to nudge, hold to keep resizing. SUPER + minus/plus still jumps in larger steps."
+          text: "Keyboard analog of SUPER + right-click. SUPER + J / K / L stay on split, keybindings, and layout. SUPER + SHIFT + arrows still swaps windows. Caps + Shift + hjkl no longer selects; use Shift + arrows."
           wrapMode: Text.WordWrap
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
-        }
-
-        PanelSeparator { width: parent.width }
-
-        PanelSectionHeader {
-          text: "MOVED FROM SUPER + J K L"
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-        }
-
-        Column {
-          width: parent.width
-          spacing: Style.space(4)
-
-          Repeater {
-            model: root.moved
-            delegate: Row {
-              width: parent.width
-              spacing: Style.space(12)
-
-              Text {
-                width: Style.space(180)
-                text: modelData.keys
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-              }
-
-              Text {
-                text: modelData.action
-                color: root.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-              }
-            }
-          }
         }
 
         PanelSeparator { width: parent.width }

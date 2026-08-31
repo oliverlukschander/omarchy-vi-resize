@@ -12,7 +12,7 @@ ROW = (
     '  "setup.vi-resize": {'
     '"icon":"󰩨",'
     '"label":"Vi Resize",'
-    '"description":"SUPER + hjkl resizes the window",'
+    '"description":"Caps + Shift + hjkl resizes the window",'
     '"action":"omarchy-shell shell summon oliverlukschander.vi-resize \'{}\'",'
     '"checked":"test -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/oliverlukschander-vi-resize.lua"'
     "},\n"
@@ -23,12 +23,14 @@ def install() -> None:
     MENU.parent.mkdir(parents=True, exist_ok=True)
     text = MENU.read_text() if MENU.exists() else "{\n}\n"
     if MARKER in text:
-        return
-    idx = text.rfind("}")
-    if idx == -1:
-        text = "{\n" + ROW + "}\n"
+        lines = text.splitlines(keepends=True)
+        text = "".join(line if MARKER not in line else ROW for line in lines)
     else:
-        text = text[:idx] + ROW + text[idx:]
+        idx = text.rfind("}")
+        if idx == -1:
+            text = "{\n" + ROW + "}\n"
+        else:
+            text = text[:idx] + ROW + text[idx:]
     MENU.write_text(text)
 
 

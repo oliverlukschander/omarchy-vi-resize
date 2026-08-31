@@ -63,7 +63,7 @@ BarWidget {
     bar: root.bar
     text: "󰩨"
     slotSize: Style.bar.statusSlot
-    tooltipText: root.mappingReady ? "Vi Resize on — SUPER + hjkl" : "Vi Resize off"
+    tooltipText: root.mappingReady ? "Vi Resize on — Caps + Shift + hjkl" : "Vi Resize off"
     opacity: root.mappingReady ? 1.0 : 0.55
 
     onPressed: function(b) {
