@@ -9,23 +9,23 @@ if [[ -f $toggle ]]; then
   toggle_present=true
 fi
 
+desc=""
 if command -v hyprctl >/dev/null && command -v python3 >/dev/null; then
-  if hyprctl binds -j 2>/dev/null | python3 -c '
+  desc=$(hyprctl binds -j 2>/dev/null | python3 -c '
 import json, sys
 try:
     binds = json.load(sys.stdin)
 except Exception:
-    sys.exit(1)
-# SUPER = 64. Plugin is on when SUPER+H resizes.
+    raise SystemExit(0)
 for bind in binds:
     if bind.get("modmask") == 64 and bind.get("key") == "H":
-        desc = (bind.get("description") or "").lower()
-        if "grow window" in desc or "resize" in desc:
-            sys.exit(0)
-sys.exit(1)
-' then
-    binds_active=true
-  fi
+        print(bind.get("description") or "")
+        break
+' || true)
+fi
+
+if [[ $desc == *"Grow window"* || $desc == *[Rr]esize* ]]; then
+  binds_active=true
 fi
 
 printf '{"togglePresent":%s,"bindsActive":%s}\n' "$toggle_present" "$binds_active"
