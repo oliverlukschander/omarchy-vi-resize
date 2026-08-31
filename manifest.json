@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "oliverlukschander.vi-resize",
+  "name": "Vi Resize",
+  "version": "1.0.0",
+  "author": "Oliver Lukschander",
+  "license": "MIT",
+  "description": "SUPER + hjkl resizes the window, like SUPER + right-click drag.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Vi Resize",
+    "description": "Hold Super and use h/j/k/l to resize the active window.",
+    "category": "Input",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
