@@ -95,11 +95,18 @@ Panel {
   function runScript(name) {
     if (name !== "install.sh" && name !== "uninstall.sh")
       return
-    Quickshell.execDetached([
-      "/usr/bin/omarchy-launch-floating-terminal-with-presentation",
+    if (setupProc.running)
+      return
+    setupProc.command = [
+      "/usr/bin/python3", "-I", root.pluginDir + "/scripts/run.py",
+      "--timeout", "60",
+      "--max-stdout", "65536",
+      "--max-stderr", "65536",
+      "--",
+      "/usr/bin/bash", "--noprofile", "--norc",
       root.pluginDir + "/" + name
-    ])
-    Qt.callLater(root.refresh)
+    ]
+    setupProc.running = true
     delayedRefresh.restart()
   }
 
@@ -140,19 +147,52 @@ Panel {
     environment: ({
       PATH: "/usr/bin:/bin",
       LANG: "C.UTF-8",
+      LC_ALL: "C.UTF-8",
       HOME: null,
       USER: null,
       LOGNAME: null,
       XDG_CONFIG_HOME: null,
       XDG_STATE_HOME: null,
       XDG_RUNTIME_DIR: null,
+      XDG_DATA_HOME: null,
       HYPRLAND_INSTANCE_SIGNATURE: null,
       WAYLAND_DISPLAY: null,
-      DBUS_SESSION_BUS_ADDRESS: null
+      DBUS_SESSION_BUS_ADDRESS: null,
+      XDG_SESSION_TYPE: null
     })
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.status = Model.parseStatus(text)
+    }
+  }
+
+  Process {
+    id: setupProc
+    workingDirectory: "/"
+    clearEnvironment: true
+    environment: ({
+      PATH: "/usr/bin:/bin",
+      LANG: "C.UTF-8",
+      LC_ALL: "C.UTF-8",
+      HOME: null,
+      USER: null,
+      LOGNAME: null,
+      XDG_CONFIG_HOME: null,
+      XDG_STATE_HOME: null,
+      XDG_RUNTIME_DIR: null,
+      XDG_DATA_HOME: null,
+      HYPRLAND_INSTANCE_SIGNATURE: null,
+      WAYLAND_DISPLAY: null,
+      DBUS_SESSION_BUS_ADDRESS: null,
+      XDG_SESSION_TYPE: null
+    })
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.refresh()
+    }
+    onRunningChanged: {
+      if (!running)
+        root.refresh()
     }
   }
 

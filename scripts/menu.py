@@ -3,31 +3,49 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from safe_file import atomic_write, die, read_text
 
-MENU = Path.home() / ".config/omarchy/extensions/omarchy-menu.jsonc"
+_CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+MENU = _CONFIG / "omarchy" / "extensions" / "omarchy-menu.jsonc"
 MARKER = '"setup.vi-resize"'
-ROW = (
-    '  "setup.vi-resize": {'
-    '"icon":"󰩨",'
-    '"label":"Vi Resize",'
-    '"description":"Caps + Shift + hjkl resizes the window",'
-    '"action":"omarchy-shell shell summon oliverlukschander.vi-resize \'{}\'",'
-    '"checked":"test -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/oliverlukschander-vi-resize.lua"'
-    "},\n"
-)
+
+
+def _atom(path: str) -> str:
+    if not os.path.isabs(path) or ".." in path.split("/"):
+        die(f"unsafe plugin path: {path}")
+    for c in path:
+        if not (c.isalnum() or c in "/._-"):
+            die(f"unsafe plugin path: {path}")
+    return path
+
+
+def _row() -> str:
+    host = _atom(os.path.join(os.path.dirname(os.path.abspath(__file__)), "menu_host.py"))
+    return (
+        '  "setup.vi-resize": {'
+        '"icon":"󰩨",'
+        '"label":"Vi Resize",'
+        '"description":"Caps + Shift + hjkl resizes the window",'
+        f'"action":"/usr/bin/python3 -I {host} action \'{{}}\'",'
+        f'"checked":"/usr/bin/python3 -I {host} checked"'
+        "},\n"
+    )
 
 
 def _with_row(text: str) -> str:
+    row = _row()
     if MARKER in text:
-        return "".join(line if MARKER not in line else ROW for line in text.splitlines(keepends=True))
+        return "".join(line if MARKER not in line else row for line in text.splitlines(keepends=True))
     idx = text.rfind("}")
     if idx == -1:
-        return "{\n" + ROW + "}\n"
-    return text[:idx] + ROW + text[idx:]
+        return "{\n" + row + "}\n"
+    return text[:idx] + row + text[idx:]
 
 
 def _without_row(text: str) -> str:

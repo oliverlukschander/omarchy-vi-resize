@@ -14,6 +14,8 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from safe_file import MAX_BYTES, atomic_write, die, read_text
 
 BEGIN = "# BEGIN oliverlukschander.vi-resize"

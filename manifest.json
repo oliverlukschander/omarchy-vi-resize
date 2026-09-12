@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "oliverlukschander.vi-resize",
   "name": "Vi Resize",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "author": "Oliver Lukschander",
   "license": "MIT",
   "description": "Caps + Shift + hjkl resizes the window, like SUPER + right-click drag.",
