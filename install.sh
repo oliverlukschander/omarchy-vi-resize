@@ -1,19 +1,26 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON=/usr/bin/python3
+HYPRCTL=/usr/bin/hyprctl
+SUDO=/usr/bin/sudo
+KEYD=/usr/bin/keyd
+SYSTEMCTL=/usr/bin/systemctl
+OMARCHY=/usr/bin/omarchy
+TIMEOUT=/usr/bin/timeout
 HYPR_SRC="$PLUGIN_DIR/hypr/vi-resize.lua"
 FRAGMENT="$PLUGIN_DIR/keyd/nav-shift-resize.conf"
-TOGGLE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr"
-TOGGLE_DST="$TOGGLE_DIR/oliverlukschander-vi-resize.lua"
-KEYD_DIR="/etc/keyd"
-BEGIN="# BEGIN oliverlukschander.vi-resize"
-END="# END oliverlukschander.vi-resize"
+TOGGLE_DST="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/oliverlukschander-vi-resize.lua"
 
 echo "Omarchy Vi Resize"
 echo "Caps + Shift + hjkl resizes the window (also SUPER + SHIFT + hjkl)."
 echo
 
+if [[ ! -x $PYTHON ]]; then
+  echo "Missing $PYTHON" >&2
+  exit 1
+fi
 if [[ ! -f $HYPR_SRC ]]; then
   echo "Missing $HYPR_SRC" >&2
   exit 1
@@ -23,68 +30,68 @@ if [[ ! -f $FRAGMENT ]]; then
   exit 1
 fi
 
-mkdir -p "$TOGGLE_DIR"
-install -m 644 "$HYPR_SRC" "$TOGGLE_DST"
+run() {
+  local timeout=$1 max=$2
+  shift 2
+  "$PYTHON" -I "$PLUGIN_DIR/scripts/run.py" --timeout "$timeout" --max-stdout "$max" --max-stderr "$max" -- "$@"
+}
+
+py() {
+  run 15 1048576 "$PYTHON" -I "$@"
+}
+
+as_root() {
+  if [[ -x $TIMEOUT ]]; then
+    "$TIMEOUT" 30 "$SUDO" "$PYTHON" -I "$@"
+  else
+    "$SUDO" "$PYTHON" -I "$@"
+  fi
+}
+
+py "$PLUGIN_DIR/scripts/safe_file.py" copy "$HYPR_SRC" "$TOGGLE_DST"
 echo "Wrote $TOGGLE_DST"
 
-if command -v hyprctl >/dev/null; then
-  hyprctl reload >/dev/null
-  errors=$(hyprctl configerrors 2>/dev/null || true)
+if [[ -x $HYPRCTL ]]; then
+  run 5 65536 "$HYPRCTL" reload >/dev/null
+  errors=$(run 5 65536 "$HYPRCTL" configerrors || true)
   if [[ -n ${errors//[[:space:]]/} ]]; then
     echo "Hyprland config errors:" >&2
     echo "$errors" >&2
   fi
 fi
 
-strip_managed_block() {
-  local target=$1
-  [[ -f $target ]] || return 0
-  if grep -qF "$BEGIN" "$target"; then
-    sudo sed -i "/$BEGIN/,/$END/d" "$target"
-  fi
-}
-
-append_managed_block() {
-  local target=$1
-  strip_managed_block "$target"
-  {
-    echo
-    echo "$BEGIN"
-    cat "$FRAGMENT"
-    echo "$END"
-  } | sudo tee -a "$target" >/dev/null
-}
-
 keyd_mapped=false
-if pacman -Q keyd &>/dev/null; then
-  sudo mkdir -p "$KEYD_DIR"
-  wildcard=""
-  shopt -s nullglob
-  for conf in "$KEYD_DIR"/*.conf; do
-    if grep -qE '^[[:space:]]*\*[[:space:]]*$' "$conf"; then
-      wildcard=$conf
-      break
-    fi
-  done
-  shopt -u nullglob
-
-  if [[ -n $wildcard ]]; then
+if [[ -x $KEYD ]]; then
+  set +e
+  wildcard=$(py "$PLUGIN_DIR/scripts/keyd_conf.py" find)
+  find_rc=$?
+  set -e
+  if [[ $find_rc -eq 0 ]]; then
     echo "Merging Caps+Shift resize into $wildcard"
     echo "(needs Vi Mode's Caps nav layer; keyd allows only one wildcard device config)"
-    append_managed_block "$wildcard"
-    sudo keyd reload 2>/dev/null || sudo systemctl restart keyd
+    tmp=$(py "$PLUGIN_DIR/scripts/keyd_conf.py" prepare "$wildcard" "$FRAGMENT")
+    as_root "$PLUGIN_DIR/scripts/keyd_conf.py" install "$tmp" "$wildcard"
+    if [[ -x $TIMEOUT ]]; then
+      "$TIMEOUT" 8 "$SUDO" "$KEYD" reload >/dev/null 2>&1 || "$TIMEOUT" 8 "$SUDO" "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
+    else
+      "$SUDO" "$KEYD" reload >/dev/null 2>&1 || "$SUDO" "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
+    fi
     keyd_mapped=true
-  else
+  elif [[ $find_rc -eq 2 ]]; then
     echo "No keyd wildcard config found (install Vi Mode for Caps + Shift + hjkl)."
     echo "SUPER + SHIFT + hjkl still resizes without it."
+  else
+    exit "$find_rc"
   fi
 else
   echo "keyd is not installed (install Vi Mode for Caps + Shift + hjkl)."
   echo "SUPER + SHIFT + hjkl still resizes without it."
 fi
 
-python3 "$PLUGIN_DIR/scripts/menu.py" install
-omarchy menu refresh >/dev/null 2>&1 || true
+py "$PLUGIN_DIR/scripts/menu.py" install
+if [[ -x $OMARCHY ]]; then
+  run 5 65536 "$OMARCHY" menu refresh >/dev/null || true
+fi
 
 echo
 echo "Ready. Hold Caps + Shift and press:"

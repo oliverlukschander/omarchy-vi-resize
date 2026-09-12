@@ -1,34 +1,67 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON=/usr/bin/python3
+HYPRCTL=/usr/bin/hyprctl
+SUDO=/usr/bin/sudo
+KEYD=/usr/bin/keyd
+SYSTEMCTL=/usr/bin/systemctl
+OMARCHY=/usr/bin/omarchy
+TIMEOUT=/usr/bin/timeout
 TOGGLE_DST="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/oliverlukschander-vi-resize.lua"
-KEYD_DIR="/etc/keyd"
-BEGIN="# BEGIN oliverlukschander.vi-resize"
-END="# END oliverlukschander.vi-resize"
 
 echo "Removing Omarchy Vi Resize bindings"
 
-rm -f "$TOGGLE_DST"
-if command -v hyprctl >/dev/null; then
-  hyprctl reload >/dev/null || true
+if [[ ! -x $PYTHON ]]; then
+  echo "Missing $PYTHON" >&2
+  exit 1
 fi
 
-if [[ -d $KEYD_DIR ]]; then
-  shopt -s nullglob
-  for conf in "$KEYD_DIR"/*.conf; do
-    if grep -qF "$BEGIN" "$conf"; then
-      sudo sed -i "/$BEGIN/,/$END/d" "$conf"
+run() {
+  local timeout=$1 max=$2
+  shift 2
+  "$PYTHON" -I "$PLUGIN_DIR/scripts/run.py" --timeout "$timeout" --max-stdout "$max" --max-stderr "$max" -- "$@"
+}
+
+py() {
+  run 15 1048576 "$PYTHON" -I "$@"
+}
+
+as_root() {
+  if [[ -x $TIMEOUT ]]; then
+    "$TIMEOUT" 30 "$SUDO" "$PYTHON" -I "$@"
+  else
+    "$SUDO" "$PYTHON" -I "$@"
+  fi
+}
+
+py "$PLUGIN_DIR/scripts/safe_file.py" remove "$TOGGLE_DST"
+if [[ -x $HYPRCTL ]]; then
+  run 5 65536 "$HYPRCTL" reload >/dev/null || true
+fi
+
+if [[ -x $KEYD ]]; then
+  did_keyd=false
+  while IFS= read -r target; do
+    [[ -n $target ]] || continue
+    tmp=$(py "$PLUGIN_DIR/scripts/keyd_conf.py" strip "$target")
+    as_root "$PLUGIN_DIR/scripts/keyd_conf.py" install "$tmp" "$target"
+    did_keyd=true
+  done < <(py "$PLUGIN_DIR/scripts/keyd_conf.py" list-managed || true)
+  if [[ $did_keyd == true ]]; then
+    if [[ -x $TIMEOUT ]]; then
+      "$TIMEOUT" 8 "$SUDO" "$KEYD" reload >/dev/null 2>&1 || "$TIMEOUT" 8 "$SUDO" "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
+    else
+      "$SUDO" "$KEYD" reload >/dev/null 2>&1 || "$SUDO" "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
     fi
-  done
-  shopt -u nullglob
-  if systemctl is-active --quiet keyd; then
-    sudo keyd reload 2>/dev/null || sudo systemctl restart keyd
   fi
 fi
 
-python3 "$PLUGIN_DIR/scripts/menu.py" uninstall
-omarchy menu refresh >/dev/null 2>&1 || true
+py "$PLUGIN_DIR/scripts/menu.py" uninstall
+if [[ -x $OMARCHY ]]; then
+  run 5 65536 "$OMARCHY" menu refresh >/dev/null || true
+fi
 
 echo "Vi Resize removed. SUPER + J / K / L stay on Omarchy defaults."
 echo "Caps + Shift + hjkl is back to Shift + arrows if Vi Mode is on."

@@ -93,11 +93,12 @@ Panel {
   }
 
   function runScript(name) {
-    var cmd = "omarchy-launch-floating-terminal-with-presentation '" + pluginDir + "/" + name + "'"
-    if (root.bar && typeof root.bar.run === "function")
-      root.bar.run(cmd)
-    else
-      Quickshell.execDetached(["bash", "-lc", cmd])
+    if (name !== "install.sh" && name !== "uninstall.sh")
+      return
+    Quickshell.execDetached([
+      "/usr/bin/omarchy-launch-floating-terminal-with-presentation",
+      root.pluginDir + "/" + name
+    ])
     Qt.callLater(root.refresh)
     delayedRefresh.restart()
   }
@@ -133,7 +134,22 @@ Panel {
 
   Process {
     id: statusProc
-    command: [root.pluginDir + "/scripts/status.sh"]
+    command: ["/usr/bin/python3", "-I", root.pluginDir + "/scripts/status.py"]
+    workingDirectory: "/"
+    clearEnvironment: true
+    environment: ({
+      PATH: "/usr/bin:/bin",
+      LANG: "C.UTF-8",
+      HOME: null,
+      USER: null,
+      LOGNAME: null,
+      XDG_CONFIG_HOME: null,
+      XDG_STATE_HOME: null,
+      XDG_RUNTIME_DIR: null,
+      HYPRLAND_INSTANCE_SIGNATURE: null,
+      WAYLAND_DISPLAY: null,
+      DBUS_SESSION_BUS_ADDRESS: null
+    })
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.status = Model.parseStatus(text)
