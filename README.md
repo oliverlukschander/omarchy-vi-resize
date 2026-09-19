@@ -27,9 +27,10 @@ omarchy plugin add https://github.com/oliverlukschander/omarchy-vi-resize.git --
 
 `install.sh` writes a Hyprland toggle for SUPER + SHIFT + hjkl (no sudo), then
 asks for sudo to merge Caps + Shift + hjkl into the Vi Mode keyd config.
+sudo needs a real terminal (it cannot prompt when stdin is closed).
 
 Click the 󰩨 icon in the bar, or *Setup → Vi Resize* in the Omarchy menu, and
-use **Install bindings** if you would rather run that from a floating terminal.
+use **Install bindings** to open a floating terminal for that password prompt.
 
 Works next to [Vi Mode](https://github.com/oliverlukschander/omarchy-vi-mode)
 and [Mac Option](https://github.com/oliverlukschander/omarchy-mac-option).
