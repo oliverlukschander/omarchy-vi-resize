@@ -12,7 +12,6 @@ SUDO=/usr/bin/sudo
 KEYD=/usr/bin/keyd
 SYSTEMCTL=/usr/bin/systemctl
 OMARCHY=/usr/bin/omarchy
-TIMEOUT=/usr/bin/timeout
 TOGGLE_DST="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/oliverlukschander-vi-resize.lua"
 
 echo "Removing Omarchy Vi Resize bindings"
@@ -32,12 +31,34 @@ py() {
   run 15 1048576 "$PYTHON" -I "$@"
 }
 
-as_root() {
-  if [[ -x $TIMEOUT ]]; then
-    "$TIMEOUT" 30 "$SUDO" "$PYTHON" -I "$@"
-  else
-    "$SUDO" "$PYTHON" -I "$@"
+# Do not wrap sudo in timeout(1). timeout starts a new process group, so sudo
+# cannot read a password from the TTY; a 30s deadline also kills a slow prompt.
+have_sudo() {
+  "$SUDO" -n true >/dev/null 2>&1
+}
+
+ensure_sudo() {
+  if have_sudo; then
+    return 0
   fi
+  if [[ ! -t 0 || ! -t 2 ]]; then
+    echo "sudo needs a terminal to ask for your password." >&2
+    echo "Run: $PLUGIN_DIR/uninstall.sh" >&2
+    exit 1
+  fi
+  echo "Updating /etc/keyd needs root. sudo will ask for your password."
+  "$SUDO" -v
+}
+
+as_root() {
+  ensure_sudo
+  "$SUDO" "$PYTHON" -I "$@"
+}
+
+reload_keyd() {
+  have_sudo || return 0
+  "$SUDO" -n "$KEYD" reload >/dev/null 2>&1 || \
+    "$SUDO" -n "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
 }
 
 py "$PLUGIN_DIR/scripts/safe_file.py" remove "$TOGGLE_DST"
@@ -54,11 +75,7 @@ if [[ -x $KEYD ]]; then
     did_keyd=true
   done < <(py "$PLUGIN_DIR/scripts/keyd_conf.py" list-managed || true)
   if [[ $did_keyd == true ]]; then
-    if [[ -x $TIMEOUT ]]; then
-      "$TIMEOUT" 8 "$SUDO" "$KEYD" reload >/dev/null 2>&1 || "$TIMEOUT" 8 "$SUDO" "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
-    else
-      "$SUDO" "$KEYD" reload >/dev/null 2>&1 || "$SUDO" "$SYSTEMCTL" restart keyd >/dev/null 2>&1 || true
-    fi
+    reload_keyd
   fi
 fi
 
