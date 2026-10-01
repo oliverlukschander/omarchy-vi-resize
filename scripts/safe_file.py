@@ -25,10 +25,18 @@ def _owned_by(st: os.stat_result, uid: int) -> bool:
     return st.st_uid == uid
 
 
+def _allowed_dir_uids() -> set[int]:
+    allowed = {0, os.getuid()}
+    sudo_uid = os.environ.get("SUDO_UID")
+    if sudo_uid and sudo_uid.isdigit() and int(sudo_uid) > 0:
+        allowed.add(int(sudo_uid))
+    return allowed
+
+
 def _check_dir(st: os.stat_result, label: str) -> None:
     if not stat.S_ISDIR(st.st_mode):
         die(f"not a directory: {label}")
-    if st.st_uid not in (0, os.getuid()):
+    if st.st_uid not in _allowed_dir_uids():
         die(f"unowned directory: {label}")
     if st.st_mode & 0o022:
         die(f"group- or world-writable directory: {label}")
