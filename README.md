@@ -13,6 +13,11 @@ the mouse.
 - SUPER + right-click drag is unchanged
 - SUPER + J / K / L stay on Omarchy defaults (split, keybindings, layout)
 
+**On Vi Mode 2.0 or later?** Turn on its **Resize mode** option instead of
+installing this plugin. Vi Mode 2.x removes this plugin's Caps + Shift +
+`hjkl` block from its keyd config whenever it applies its mapping, so only
+SUPER + SHIFT + `hjkl` from this plugin would stay.
+
 `omarchy plugin add` never runs install hooks, so the bindings are applied by
 `install.sh`.
 
